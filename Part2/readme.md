@@ -100,7 +100,7 @@ and in the context menu click GameObject -\> 3d Object -\> Sphere.
 Now we’ll right click on the Sphere in the Hierarchy view, and click Rename to
 name it Ball.
 
-You window should now look like this:
+Your window should now look like this:
 
 ![](media/a37ffe301170b6e080224d126bf05778.png)
 
@@ -258,6 +258,43 @@ stays. If you get closer than 85cm from it, the sphere will disappear. Click the
 stop button in Visual studio to stop debugging.
 
 Congratulations, you’ve built and deployed your first HoloLens app!
+
+A note on Source Control
+========================
+
+At this point you’ll probably want to commit your project to your source control
+system. If you’re using Git, and you sued the git desktop client to create your
+repository you’ll get the option to import a unity-specific ignore file. One of
+the entries is for a Builds directory, as you probably don’t need to commit the
+generated player content. There’s also a few other entries for directories that
+gets created in the project by Unity, like the Library directory, and many
+metadata files.
+
+However, this ignore assumes that your unity project is in the root of your
+repo. If your Unity project is deeper than that, you might need to update the
+ignore file.
+
+In the case of this tutorial series for instance, I have the following in my
+gitignore file:
+
+>   \*\*/PaddleBounceTutorial/[Ll]ibrary/
+
+>   \*\*/PaddleBounceTutorial/[Tt]emp/
+
+>   \*\*/PaddleBounceTutorial/[Oo]bj/
+
+>   \*\*/PaddleBounceTutorial/[Bb]uild/
+
+>   \*\*/PaddleBounceTutorial/[Bb]uilds/
+
+>   \*\*/PaddleBounceTutorial/Assets/AssetStoreTools\*
+
+I had to prepend the default library entries with *\*\*/PaddleBounceTutorial* to
+make git ignore them correctly. If you’ve already committed the additional
+files, you’ll have to manually remove the directories from your repo, and clear
+the cache. Use the command *git rm –cached {directoryname}* After fixing this up
+in my tutorial, my commit went from 4600 files to 1000 files, so it’s well worth
+making sure you’re doing it right.
 
 Summary
 =======
