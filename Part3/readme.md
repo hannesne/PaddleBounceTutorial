@@ -5,7 +5,8 @@ title: "Paddle Bounce tutorial – Part 3: Let’s play a game"
 At this point you should now have a HoloLens app with a sphere hanging in
 mid-air. Not particularly exciting, and definitely a far-cry from a top100 app
 store title. Let’s see how to make it a bit more interactive, and inch closer to
-our goals.
+our goals. This is one of our longer posts, as there’s a few different things
+that we need to pull together to make it work. Future posts will be shorter!
 
 Building a paddle
 =================
@@ -163,14 +164,261 @@ an appreciation for how much the toolkit does for you.
 Bouncy Ball Bounce
 ==================
 
+Right now our ball doesn’t participate in physics, and isn’t subject to gravity.
+To give it gravity, we need to add a rigidbody component to it. A Rigidbody
+essentially gives it substance, or mass. Select the ball in the hierarchy, and
+click *Add Component* in the inspector view. Click *Physics -\> RigidBody*, to
+add it.
+
+Now set the mass to 0.0027 and the Drag to 0.1:
+
+![](media/6972c742865f27984f1b3dc4c459be8f.png)
+
+Now click the Play button again, and you’ll see your ball fall, and hover just
+above your paddle. Hmm that’s not right.The reason the ball hangs in mid-air, is
+that the paddle has a capsule collider on it that extends beyond it’s volume.
+You can see it by having a look in the scene view, while the game is still
+playing:
+
+![](media/7044ebe577f12fcf66be70920b068afb.png)
+
+The green sphere is the outlines of the collidor. The collider is a component
+that detects collisions between objects in Unity, and is critical to the physics
+system. Without colliders, objects would just pass through each other. In the
+inspector view, look for the capsule collider, and deselect the checkbox next to
+it. Notice how the ball suddenly falls through the paddle.
+
+![](media/9ca09bfed49c0fc6e5499ea22dacfe05.png)
+
+We need to change the type of collider on the paddle to better match its shape.
+Hit the play button again to stop the game (otherwise your changes won’t be
+persisted). Now click the Settings cog, and click *Remove Component*. Now scroll
+down, and add another component. In the menu, pick *Physics -\> Mesh Collidor.*
+Mesh colliders are great for weird shapes that need to match up, but they can be
+computationally very expensive, so should be sued sparingly. It’s often a better
+idea to approximate what you need using combinations of the other primitive
+collider shapes. If you hit play again, you’ll see the ball now come to rest on
+the paddle.
+
+So how do we make it bounce? We need a physic material for our ball and our
+paddle. In your project view, right click in the PaddleBounceTutorial folder,
+and click *Create -\> Physic Material*. Call it PaddlePhysic. With the pysic
+selected, change the values in the inspector panel for Dynamic and Static
+friction to 0.1, and the Bounciness to 1.
+
+![](media/a305ad70a10f2e3ac626d9a61213a965.png)
+
+Now add it to the Material field on the paddle’s Mesh Collidor.
+
+Do it again, but this time call it BallPhysic, and add it to the Sphere collider
+on your ball.
+
+![](media/08ed232a13c243d737d5f4bba6d3f8f0.png)
+
+Hit play again, and you’ll see your ball bounce a few times before falling
+through the paddle. The reason for this is that the default settings aren’t
+great for fast-moving objects. We need to change the Collision Detection field
+on the rigid body to *Continous Dynamic* for the ball.
+
+Also, our paddle needs to be given a rigidbody to better participate in physics.
+We don’t want it to be subject to gravity, so uncheck the *Use Gravity* box.
+Because our Hand Draggable script sets its position programmatically, we also
+need to check the Is Kinematic box. Unity’s physics engine does optimisations
+during runtime does that would incorrectly assume it’s position if that flag is
+not set when moving the object. Also set the Collision Detection field to
+*Continous Dynamic.*
+
+Press play again, and you’ll notice the ball bouncing much more reliably now.
+
+It’s all about Ball Control
+===========================
+
 Finally, time to write some code! We want the ball to start dropping when we
 grab the paddle, and return to its original position when we let go of the
 paddle.
 
-To do this, we’ll create a new script for the paddle. In the project view,
-select the PaddleBounceTutorial folder in which you’ve saved your main scene.
-Right click in the open space next to the scene object, and in the context menu,
-click Create -\> C\# Script. Name the script PaddleBehaviour, and add it to your
-paddle:
+First, we’ll find the RigidBody on the ball, and disable *Use Gravity*.
+
+We’ll create a script to control the gravity programmatically. In the project
+view, select the PaddleBounceTutorial folder in which you’ve saved your main
+scene. Right click in the open space next to the scene object, and in the
+context menu, click Create -\> C\# Script. Name the script PaddleBehaviour, and
+add it to your paddle:
 
 ![](media/43b6437c551f5185d099708877d97e16.png)
+
+Double-click to open the script up in Visual Studio, so we can edit it.
+
+![](media/5095368d748560e4b88f3b73c4f1f0cc.png)
+
+You’ll notice that in the solution explorer, you’ve got two projects. This is
+the Unity Editor project, with your scripts from the assets folder. This is
+different from the UWP project that we use to run the app on HoloLens. This
+project is executed by the Unity Editor, and rendered in the Game window. This
+script runs using Mono, whereas your UWP project uses full .Net Core. It means
+that you’ve got to be careful about what code you use here, as not everything in
+C\# is supported by the current version of Mono used by Unity. You also don’t
+have (easy) access to platform specific APIs here. We’ll do a deeper dive into
+that in a future post.
+
+Sometimes your new script isn’t in the project in Visual Studio. If this
+happens, try to reload the project.
+
+We’ll tie the paddle into the toolkit’s input system, provided by the
+InputManager. To do that, we’ll implement IInputHandler. We need to add it to
+the line with the PaddleBehaviour class definition. Next we add a using
+statement to the top for using HoloToolkit.Unity.InputModule; You can do that by
+pressing the shortcut key *ctrl + .* on the interface name, and selecting the
+*Using HoloToolkit…* item from the context menu. To implement the interface,
+press the *ctrl + .* shortcut again, and select the *Implement interface* item.
+Delete the method bodies throwing the NotImplemented exception. Your code should
+now look like this:
+
+![](media/f9ea15163f11c00618c5bf310291f767.png)
+
+IInputHandler is one of a few interfaces that the toolkit looks for whenever you
+perform an input action in the app on a game object. If the user looks at the
+game object, and does an air-tap, the InputManager will look for any components
+in that game object’s tree that implements IInputHandler, and call the
+OnInputDown event when the user’s finger goes down. When the user raises their
+finger, the InputManager will call the OnInputUp method. This happens
+automatically for any object you’re looking at. You can also register for these
+events from a component that isn’t being looked at. We’ll do that in a future
+post.
+
+We’ll need a reference to the ball’s rigidbody, so let’s add a public field to
+the class:
+
+public Rigidbody Ball;
+
+If we switch back to the Unity Editor, you’ll see a little spinning wheel in the
+bottom-right corner. This means that Unity is recompiling your code, and
+updating the editor with the results. When that is finished, you’ll see the new
+ball field in your PaddleBehaviour component on the paddle:
+
+![](media/f30f34a091c67ff221358b98c3e2ff55.png)
+
+Unfortunately, this only supports using fields, not properties.
+
+Drag the ball object from the Hierarchy view, onto the textbox so it looks like
+this.
+
+![](media/36b1949f34974020ed3155f9990fd335.png)
+
+Alternatively, you can click the circle to the right of the textbox, and select
+your ball from the list in the dialog. Because the field is a Rigidbody, only
+game objects that have a Rigidbody component can be assigned to it.
+
+Now switch back to Visual Studio.
+
+Add the following to the OnInputDown method’s body, in the PaddleBehaviour
+class:
+
+public void OnInputDown(InputEventData eventData)
+
+{
+
+Ball.useGravity = true;
+
+}
+
+This will enable gravity for the ball, making it drop down whenever we grab the
+handle.
+
+We would also like to save the ball’s original location and rotation when the
+game starts. We’ll create fields to store it:
+
+private Vector3 originalBallPosition;
+
+private Quaternion originalBallRotation;
+
+Looking at the content of the script, you see two methods already populated for
+you: Start and Update. Unity has a messaging system that uses reflection to
+match these methods with message names. PaddleBehaviour participates in this
+messaging system because it inherits from MonoBehaviour. Messages are sent to
+GameObjects, and these methods on the components handle them when implemented.
+Multiple components can handle the same messages on a game object. This makes it
+easy for you to isolate pieces of functionality. There are several pre-defined
+messages, like Start and Update. Thanks to the Visual Studio tools for Unity,
+you can right click on open space in your file, and click on the *Implement
+Unity Messages* item towards the bottom of the context menu, to see a dialog box
+containing these standard messages. This dialog box lets you select the messages
+you’re interested in, and add their definitions to your code.
+
+![](media/9358f13bf9da883bd9934d5f920d24a1.png)
+
+The Start method is called whenever our script starts executing, after
+everything in the scene has been set up. The update method is called every time
+a new frame needs to be rendered. We’re only interested in the start method for
+now, to save the location before anything changes.
+
+void Start ()
+
+{
+
+originalBallPosition = Ball.transform.position;
+
+originalBallRotation = Ball.transform.rotation;
+
+}
+
+Note that we can’t just keep a reference to the transform itself, as it will
+always return the ball’s current position due to being copied by reference. We
+need a *copy* of the *original* values in it, to assign back to it later.
+Because the position and rotation are structs, they’ll be copied by value.
+
+Lastly, in the OnInputUp method, we’ll reset the ball and disable gravity again.
+Because we’re now moving the ball manually, we’ll need to also enable
+IsKinematic while we do so:
+
+public void OnInputUp(InputEventData eventData)
+
+{
+
+Ball.useGravity = false;
+
+Ball.isKinematic = true;
+
+Ball.transform.SetPositionAndRotation(originalBallPosition,
+originalBallRotation);
+
+Ball.isKinematic = false;
+
+}
+
+Our file now looks like this:
+
+![](media/ee73462da7552eaf29f52ee75b5a3139.png)
+
+If we go back to Unity, we can hit the play button to test it out. Our ball
+should now start dropping and bouncing when we hold the air-tap down, and return
+back to its starting position when we let go of it.
+
+A neat trick to try, is to hit the debug button in Visual studio with the Attach
+to Unity target, and place a breakpoint in the OnInputUp method.
+
+![](media/0259ec93168ccb797f74262b6ce73bef.png)
+
+Now hit the play button, and air-tap the paddle. When you lift your finger, the
+focus will switch to Visual Studio, and you’ll see your breakpoint being hit.
+You can now inspect the values of any variables, change the execution flow, and
+do other debug related tasks. Very useful to figure out hard problems in your
+code.
+
+In Summary
+==========
+
+In this post, we’ve seen how to
+
+1.  create the paddle by combining primitive models
+
+2.  enable gravity and physics
+
+3.  write a script
+
+4.  re-use the Mixed Reality Toolkit scripts
+
+5.  tie into the Mixed Reality Tookit’s input system
+
+In our next post, we’ll look at using the HoloLens’ ability to model the world
+around us to bounce our ball off the environment.
